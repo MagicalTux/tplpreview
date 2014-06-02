@@ -1,7 +1,9 @@
+#include <QFileDialog>
 #include "MainWindow.hpp"
 
 MainWindow::MainWindow() {
 	ui.setupUi(this);
+	connect(ui.btn_browse, SIGNAL(clicked()), this, SLOT(browse()));
 	rc = NULL;
 
 	connect(&timer, SIGNAL(timeout()), this, SLOT(checkConnection()));
@@ -42,19 +44,41 @@ void MainWindow::handleBuf(const QByteArray &src, const QByteArray &buf) {
 
 	r >> packet_id >> id;
 
-	qDebug("Parser: packet_id = %d id = %d", packet_id, id);
+//	qDebug("Parser: packet_id = %d id = %d", packet_id, id);
 
 	switch(id) {
 		case 0x00: // LOG
 			log(QString::fromUtf8(buf.mid(6)));
 			reply(src, packet_id, 0xff);
 			break;
+		case 0x01: // FILE_EXISTS
+			handle_fileExists(src, packet_id, QString::fromUtf8(buf.mid(6)));
+			break;
+		case 0x02: // GET_DIR (return contents of all files in dir recursively)
+			handle_getDir(src, packet_id, QString::fromUtf8(buf.mid(6)));
+			break;
+		case 0x03: // FILE_GET_CONTENTS
+			handle_fileGetContents(src, packet_id, QString::fromUtf8(buf.mid(6)));
+			break;
 	}
+}
+
+void MainWindow::browse() {
+	QString res = QFileDialog::getExistingDirectory(this, tr("Select directory containing git root"), ui.base_path->text(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+	if (res.isEmpty()) return;
+	ui.base_path->setText(res);
+}
+
+QDir MainWindow::getPath() const {
+	return QDir(ui.base_path->text());
 }
 
 void MainWindow::reply(const QByteArray &tgt, quint32 packet_id, quint16 id, const QByteArray &payload) {
 	if (rc == NULL) return;
-	qDebug("Sending to %s: %d %d", qPrintable(tgt.toHex()), packet_id, id);
+	qDebug(" -> Reply %d [%x] with %d bytes of data", packet_id, id, payload.length());
+	if (id == 0xdead) {
+		qDebug(" -> Exception: %s", qPrintable(payload));
+	}
 	QByteArray header;
 	QDataStream header_w(&header, QIODevice::WriteOnly);
 	header_w.writeRawData(tgt.data(), tgt.length());
@@ -69,7 +93,6 @@ void MainWindow::reply(const QByteArray &tgt, quint32 packet_id, quint16 id, con
 	if (msg.length() < 0x8000) {
 		quint16 l = msg.length();
 		header_w << l;
-		qDebug("RAW: %s%s", qPrintable(header.toHex()), qPrintable(msg.toHex()));
 		rc->write(header + msg);
 		return;
 	}
@@ -124,7 +147,7 @@ void MainWindow::handleRcData() {
 			continue;
 		}
 
-		qDebug("Got %d bytes of data from %s", len, qPrintable(tgt.toHex()));
+//		qDebug("Got %d bytes of data from %s", len, qPrintable(tgt.toHex()));
 		handleBuf(tgt, buf.mid(header_len, len));
 
 		buf.remove(0, len+header_len);
@@ -136,5 +159,6 @@ void MainWindow::setUrl(const QString &url) {
 }
 
 void MainWindow::log(const QString &msg) {
+	qDebug("log(%s)", qPrintable(msg));
 	ui.list_log->addItem(msg);
 }

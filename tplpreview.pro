@@ -12,4 +12,4 @@ QT += network
 # Input
 HEADERS += MainWindow.hpp
 FORMS += MainWindow.ui
-SOURCES += main.cpp MainWindow.cpp
+SOURCES += main.cpp MainWindow.cpp MainWindow_funcs.cpp

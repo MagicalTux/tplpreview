@@ -1,6 +1,7 @@
 #include <QMainWindow>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QDir>
 #include "ui_MainWindow.h"
 
 class MainWindow: public QMainWindow {
@@ -11,6 +12,7 @@ public:
 public slots:
 	void checkConnection();
 	void handleRcData();
+	void browse();
 
 	void setUrl(const QString &);
 	void log(const QString &);
@@ -18,6 +20,12 @@ public slots:
 protected:
 	void handleBuf(const QByteArray &src, const QByteArray &buf);
 	void reply(const QByteArray &tgt, quint32 packet_id, quint16 id, const QByteArray &msg = QByteArray());
+
+	QDir getPath() const;
+
+	void handle_fileExists(const QByteArray &src, quint32 packet_id, const QString &file);
+	void handle_getDir(const QByteArray &src, quint32 packet_id, const QString &dir);
+	void handle_fileGetContents(const QByteArray &src, quint32 packet_id, const QString &file);
 
 private:
 	Ui::MainWindow ui;
