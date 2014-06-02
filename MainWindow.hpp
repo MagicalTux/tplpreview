@@ -15,6 +15,10 @@ public slots:
 	void setUrl(const QString &);
 	void log(const QString &);
 
+protected:
+	void handleBuf(const QByteArray &src, const QByteArray &buf);
+	void reply(const QByteArray &tgt, quint32 packet_id, quint16 id, const QByteArray &msg = QByteArray());
+
 private:
 	Ui::MainWindow ui;
 	QTcpSocket *rc;

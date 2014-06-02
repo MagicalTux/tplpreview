@@ -4,11 +4,11 @@ MainWindow::MainWindow() {
 	ui.setupUi(this);
 	rc = NULL;
 
-	checkConnection();
-
 	connect(&timer, SIGNAL(timeout()), this, SLOT(checkConnection()));
 	timer.setSingleShot(false);
-	timer.start(3000);
+	timer.start(30000);
+
+	checkConnection();
 }
 
 void MainWindow::checkConnection() {
@@ -31,6 +31,56 @@ void MainWindow::checkConnection() {
 	connect(rc, SIGNAL(readyRead()), this, SLOT(handleRcData()));
 	setUrl("(connecting...)");
 	log("Connecting to system...");
+}
+
+void MainWindow::handleBuf(const QByteArray &src, const QByteArray &buf) {
+	// get ID from buf
+	QDataStream r(buf);
+	
+	quint32 packet_id;
+	quint16 id;
+
+	r >> packet_id >> id;
+
+	qDebug("Parser: packet_id = %d id = %d", packet_id, id);
+
+	switch(id) {
+		case 0x00: // LOG
+			log(QString::fromUtf8(buf.mid(6)));
+			reply(src, packet_id, 0xff);
+			break;
+	}
+}
+
+void MainWindow::reply(const QByteArray &tgt, quint32 packet_id, quint16 id, const QByteArray &payload) {
+	if (rc == NULL) return;
+	qDebug("Sending to %s: %d %d", qPrintable(tgt.toHex()), packet_id, id);
+	QByteArray header;
+	QDataStream header_w(&header, QIODevice::WriteOnly);
+	header_w.writeRawData(tgt.data(), tgt.length());
+
+	QByteArray msg;
+	{
+		QDataStream w(&msg, QIODevice::WriteOnly);
+		w << packet_id << id;
+	}
+	msg.append(payload);
+
+	if (msg.length() < 0x8000) {
+		quint16 l = msg.length();
+		header_w << l;
+		qDebug("RAW: %s%s", qPrintable(header.toHex()), qPrintable(msg.toHex()));
+		rc->write(header + msg);
+		return;
+	}
+	quint16 l;
+	quint32 payload_len = msg.length();
+	l = ((payload_len >> 16) & 0x7fff) | 0x8000;
+	header_w << l;
+	l = payload_len & 0xffff;
+	header_w << l;
+	rc->write(header);
+	rc->write(msg);
 }
 
 void MainWindow::handleRcData() {
@@ -75,6 +125,8 @@ void MainWindow::handleRcData() {
 		}
 
 		qDebug("Got %d bytes of data from %s", len, qPrintable(tgt.toHex()));
+		handleBuf(tgt, buf.mid(header_len, len));
+
 		buf.remove(0, len+header_len);
 	}
 }
