@@ -23,7 +23,7 @@ static void handle_getDir_recurse(const QDir &base, QDir dir, QDataStream &s) {
 	QFileInfoList files = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::Dirs | QDir::Files);
 	foreach(const QFileInfo &fi, files) {
 		if (fi.isDir()) {
-			handle_getDir_recurse(base, fi.dir(), s);
+			handle_getDir_recurse(base, fi.absoluteFilePath(), s);
 			continue;
 		}
 		if (fi.isFile()) {
