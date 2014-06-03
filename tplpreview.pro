@@ -7,7 +7,8 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 
-QT += network
+QT += gui declarative network
+TARGET = tplpreview
 
 # Input
 HEADERS += MainWindow.hpp
