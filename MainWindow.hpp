@@ -26,6 +26,7 @@ protected:
 	void handle_fileExists(const QByteArray &src, quint32 packet_id, const QString &file);
 	void handle_getDir(const QByteArray &src, quint32 packet_id, const QString &dir);
 	void handle_fileGetContents(const QByteArray &src, quint32 packet_id, const QString &file);
+	void handle_fileGetSize(const QByteArray &src, quint32 packet_id, const QString &file);
 
 private:
 	Ui::MainWindow ui;

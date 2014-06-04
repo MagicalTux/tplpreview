@@ -60,6 +60,9 @@ void MainWindow::handleBuf(const QByteArray &src, const QByteArray &buf) {
 		case 0x03: // FILE_GET_CONTENTS
 			handle_fileGetContents(src, packet_id, QString::fromUtf8(buf.mid(6)));
 			break;
+		case 0x04: // FILE_GET_SIZE
+			handle_fileGetSize(src, packet_id, QString::fromUtf8(buf.mid(6)));
+			break;
 	}
 }
 

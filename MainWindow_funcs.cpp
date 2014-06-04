@@ -90,3 +90,22 @@ void MainWindow::handle_fileGetContents(const QByteArray &src, quint32 packet_id
 	sub.close();
 }
 
+void MainWindow::handle_fileGetSize(const QByteArray &src, quint32 packet_id, const QString &file) {
+	qDebug("file_get_size(%s)", qPrintable(file));
+	QDir path = getPath();
+	if (!path.exists()) {
+		reply(src, packet_id, 0xdead, "Root is not valid");
+		return;
+	}
+	if (file.contains("../")) {
+		reply(src, packet_id, 0xdead, "File name is not valid");
+		return;
+	}
+	QFile sub(path.absoluteFilePath(file));
+	if (!sub.exists()) {
+		reply(src, packet_id, 0xdead, "File not found");
+		return;
+	}
+	reply(src, packet_id, 0xff, QByteArray::number(sub.size()));
+}
+
