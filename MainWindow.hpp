@@ -11,6 +11,7 @@ public:
 
 public slots:
 	void checkConnection();
+	void reconnect();
 	void handleRcData();
 	void browse();
 

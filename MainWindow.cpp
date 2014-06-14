@@ -4,12 +4,24 @@
 MainWindow::MainWindow() {
 	ui.setupUi(this);
 	connect(ui.btn_browse, SIGNAL(clicked()), this, SLOT(browse()));
+	connect(ui.btn_regen, SIGNAL(clicked()), this, SLOT(reconnect()));
 	rc = NULL;
 
 	connect(&timer, SIGNAL(timeout()), this, SLOT(checkConnection()));
 	timer.setSingleShot(false);
 	timer.start(30000);
 
+	checkConnection();
+}
+
+void MainWindow::reconnect() {
+	log("Triggering reconnection...");
+	if (rc) {
+		if (rc->state() == QAbstractSocket::ConnectedState)
+			rc->disconnect();
+		delete rc;
+		rc = NULL;
+	}
 	checkConnection();
 }
 

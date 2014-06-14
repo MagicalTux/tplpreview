@@ -69,14 +69,36 @@
        </layout>
       </item>
       <item row="1" column="1">
-       <widget class="QLabel" name="label_url">
-        <property name="text">
-         <string>(please wait...)</string>
-        </property>
-        <property name="textInteractionFlags">
-         <set>Qt::TextBrowserInteraction</set>
-        </property>
-       </widget>
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="QLabel" name="label_url">
+          <property name="text">
+           <string>(please wait...)</string>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::TextBrowserInteraction</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="btn_regen">
+          <property name="text">
+           <string>Regen address</string>
+          </property>
+          <property name="icon">
+           <iconset theme="reload">
+            <normaloff/>
+           </iconset>
+          </property>
+          <property name="iconSize">
+           <size>
+            <width>16</width>
+            <height>16</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </item>
@@ -128,7 +150,7 @@
      <x>0</x>
      <y>0</y>
      <width>571</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>
