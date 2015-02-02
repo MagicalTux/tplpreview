@@ -39,7 +39,7 @@ void MainWindow::checkConnection() {
 	}
 
 	rc = new QTcpSocket(this);
-	rc->connectToHost("118.27.0.3", 55555);
+	rc->connectToHost("tplpreview.com", 55555);
 	new_connection = true; // first 16 bytes are our ID
 
 	connect(rc, SIGNAL(readyRead()), this, SLOT(handleRcData()));
