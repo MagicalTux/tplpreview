@@ -18,6 +18,8 @@ public slots:
 	void setUrl(const QString &);
 	void log(const QString &);
 
+	void on_logCheckBox_toggled(bool);
+
 protected:
 	void handleBuf(const QByteArray &src, const QByteArray &buf);
 	void reply(const QByteArray &tgt, quint32 packet_id, quint16 id, const QByteArray &msg = QByteArray());
@@ -34,6 +36,7 @@ private:
 	QTcpSocket *rc;
 	QTimer timer;
 	bool new_connection;
+	bool log_enabled;
 	QByteArray buf;
 	QByteArray our_id;
 };

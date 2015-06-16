@@ -6,6 +6,7 @@ MainWindow::MainWindow() {
 	connect(ui.btn_browse, SIGNAL(clicked()), this, SLOT(browse()));
 	connect(ui.btn_regen, SIGNAL(clicked()), this, SLOT(reconnect()));
 	rc = NULL;
+	log_enabled = true;
 
 	connect(&timer, SIGNAL(timeout()), this, SLOT(checkConnection()));
 	timer.setSingleShot(false);
@@ -174,6 +175,19 @@ void MainWindow::setUrl(const QString &url) {
 }
 
 void MainWindow::log(const QString &msg) {
+	if (!log_enabled) return;
 	qDebug("log(%s)", qPrintable(msg));
 	ui.list_log->addItem(msg);
 }
+
+void MainWindow::on_logCheckBox_toggled(bool checked) {
+	log_enabled = checked;
+	if (checked) {
+		// enable logs
+		ui.logFrame->setEnabled(true);
+	} else {
+		ui.logFrame->setEnabled(false);
+		ui.list_log->clear();
+	}
+}
+

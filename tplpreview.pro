@@ -7,7 +7,7 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 
-QT += gui declarative network
+QT += gui network
 TARGET = tplpreview
 
 # Input
