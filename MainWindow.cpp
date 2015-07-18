@@ -40,7 +40,7 @@ void MainWindow::reconnect() {
 
 void MainWindow::checkConnection() {
 	if (!net_reply) {
-		qDebug("Do query now");
+//		qDebug("Do query now");
 		QNetworkRequest req(QUrl("http://" TPLPREVIEW_DOMAIN "/_special/stream"));
 		req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
 		req.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
