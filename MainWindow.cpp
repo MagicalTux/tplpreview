@@ -1,82 +1,118 @@
 #include <QFileDialog>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QNetworkCookieJar>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include "MainWindow.hpp"
+
+#define TPLPREVIEW_DOMAIN "tplpreview.com"
 
 MainWindow::MainWindow() {
 	ui.setupUi(this);
 	connect(ui.btn_browse, SIGNAL(clicked()), this, SLOT(browse()));
 	connect(ui.btn_regen, SIGNAL(clicked()), this, SLOT(reconnect()));
-	rc = NULL;
+	net_reply = NULL;
 	log_enabled = true;
 
 	connect(&timer, SIGNAL(timeout()), this, SLOT(checkConnection()));
 	timer.setSingleShot(false);
 	timer.start(30000);
 
+	setUrl("(connecting...)");
+	log("Connecting to system...");
 	checkConnection();
 }
 
 void MainWindow::reconnect() {
 	log("Triggering reconnection...");
-	if (rc) {
-		if (rc->state() == QAbstractSocket::ConnectedState)
-			rc->disconnect();
-		delete rc;
-		rc = NULL;
+	if (net_reply) {
+		net_reply->close();
+		net_reply->deleteLater();
+		net_reply = NULL;
 	}
+
+	net.cookieJar()->deleteLater();
+	net.setCookieJar(new QNetworkCookieJar());
+
 	checkConnection();
 }
 
 void MainWindow::checkConnection() {
-	// check connect
-	if (rc) {
-		if (rc->state() == QAbstractSocket::ConnectedState) {
-			// send ping
-			if (!new_connection)
-				rc->write(our_id + QByteArray(2, '\0'));
-			return;
-		}
-		delete rc;
-		rc = NULL;
+	if (!net_reply) {
+		qDebug("Do query now");
+		QNetworkRequest req(QUrl("http://" TPLPREVIEW_DOMAIN "/_special/stream"));
+		req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
+		req.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
+		req.setRawHeader("Accept-Encoding", "none");
+		net_reply = net.get(req);
+		connect(net_reply, SIGNAL(readyRead()), this, SLOT(handleReplyData()));
+		connect(net_reply, SIGNAL(finished()), this, SLOT(handleReplyFinished()));
+		connect(net_reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(handleReplyError(QNetworkReply::NetworkError)));
+		new_connection = true;
 	}
-
-	rc = new QTcpSocket(this);
-	rc->connectToHost("tplpreview.com", 55555);
-	new_connection = true; // first 16 bytes are our ID
-
-	connect(rc, SIGNAL(readyRead()), this, SLOT(handleRcData()));
-	setUrl("(connecting...)");
-	log("Connecting to system...");
 }
 
-void MainWindow::handleBuf(const QByteArray &src, const QByteArray &buf) {
-	// get ID from buf
-	QDataStream r(buf);
-	
-	quint32 packet_id;
-	quint16 id;
-
-	r >> packet_id >> id;
-
-//	qDebug("Parser: packet_id = %d id = %d", packet_id, id);
-
-	switch(id) {
-		case 0x00: // LOG
-			log(QString::fromUtf8(buf.mid(6)));
-			reply(src, packet_id, 0xff);
-			break;
-		case 0x01: // FILE_EXISTS
-			handle_fileExists(src, packet_id, QString::fromUtf8(buf.mid(6)));
-			break;
-		case 0x02: // GET_DIR (return contents of all files in dir recursively)
-			handle_getDir(src, packet_id, QString::fromUtf8(buf.mid(6)));
-			break;
-		case 0x03: // FILE_GET_CONTENTS
-			handle_fileGetContents(src, packet_id, QString::fromUtf8(buf.mid(6)));
-			break;
-		case 0x04: // FILE_GET_SIZE
-			handle_fileGetSize(src, packet_id, QString::fromUtf8(buf.mid(6)));
-			break;
+void MainWindow::handleReplyError(QNetworkReply::NetworkError e) {
+	qDebug("ERROR");
+	if (net_reply) {
+		net_reply->close();
+		net_reply->deleteLater();
+		net_reply = NULL;
 	}
+
+	checkConnection();
+}
+
+void MainWindow::handleReplyData() {
+	if (!net_reply) return;
+	while(net_reply->canReadLine()) {
+		QByteArray lin = net_reply->readLine();
+
+		if (new_connection) {
+			// this is our ID
+			our_id = lin.trimmed();
+//			log("Connection ready, ID: "+our_id);
+			setUrl(QString("http://")+our_id+"." TPLPREVIEW_DOMAIN "/");
+			new_connection = false;
+			continue;
+		}
+		// parse json
+		QJsonParseError e;
+		QJsonDocument doc = QJsonDocument::fromJson(lin.trimmed(), &e);
+		if (!doc.isObject()) continue; // wtf?
+
+		int code = doc.object().value("code").toInt();
+		QByteArray reply_to = doc.object().value("reply_to").toString().toUtf8();
+		QString data = doc.object().value("data").toString();
+
+		switch(code) {
+			case 0x00: // LOG
+				log(data);
+				reply(reply_to, 0xff);
+				break;
+			case 0x01: // FILE_EXISTS
+				handle_fileExists(reply_to, data);
+				break;
+			case 0x02: // GET_DIR (return contents of all files in dir recursively)
+				handle_getDir(reply_to, data);
+				break;
+			case 0x03: // FILE_GET_CONTENTS
+				handle_fileGetContents(reply_to, data);
+				break;
+			case 0x04: // FILE_GET_SIZE
+				handle_fileGetSize(reply_to, data);
+				break;
+		}
+	}
+}
+
+void MainWindow::handleReplyFinished() {
+	if ((net_reply) && (net_reply->isFinished())) {
+		net_reply->deleteLater();
+		net_reply = NULL;
+	}
+	checkConnection();
 }
 
 void MainWindow::browse() {
@@ -89,85 +125,14 @@ QDir MainWindow::getPath() const {
 	return QDir(ui.base_path->text());
 }
 
-void MainWindow::reply(const QByteArray &tgt, quint32 packet_id, quint16 id, const QByteArray &payload) {
-	if (rc == NULL) return;
-	qDebug(" -> Reply %d [%x] with %d bytes of data", packet_id, id, payload.length());
-	if (id == 0xdead) {
-		qDebug(" -> Exception: %s", qPrintable(payload));
-	}
-	QByteArray header;
-	QDataStream header_w(&header, QIODevice::WriteOnly);
-	header_w.writeRawData(tgt.data(), tgt.length());
+void MainWindow::reply(const QByteArray &tgt, quint16 id, const QJsonValue &payload) {
+	QJsonObject obj;
+	obj.insert("code", id);
+	obj.insert("payload", payload);
 
-	QByteArray msg;
-	{
-		QDataStream w(&msg, QIODevice::WriteOnly);
-		w << packet_id << id;
-	}
-	msg.append(payload);
-
-	if (msg.length() < 0x8000) {
-		quint16 l = msg.length();
-		header_w << l;
-		rc->write(header + msg);
-		return;
-	}
-	quint16 l;
-	quint32 payload_len = msg.length();
-	l = ((payload_len >> 16) & 0x7fff) | 0x8000;
-	header_w << l;
-	l = payload_len & 0xffff;
-	header_w << l;
-	rc->write(header);
-	rc->write(msg);
-}
-
-void MainWindow::handleRcData() {
-	buf.append(rc->readAll());
-
-	if (new_connection) {
-		if (buf.length() < 16) return;
-		our_id = buf.mid(0, 16);
-		QByteArray id = our_id.toHex();
-		log("Connection ready, ID: "+id);
-		setUrl(QString("http://")+id+".tplpreview.com/");
-		buf.remove(0, 16);
-		new_connection = false;
-	}
-
-	// check data
-	while(true) {
-		if (buf.length() < 18) return;
-		quint32 len;
-		quint16 len_min;
-		quint32 header_len = 18;
-
-		QByteArray tgt = buf.mid(0, 16);
-		QDataStream r(buf);
-		r.skipRawData(16);
-
-		r >> len_min;
-		len = len_min;
-		if (len_min & 0x8000) {
-			if (buf.length() < 20) return;
-			r >> len_min;
-			len = ((len & 0x7fff) << 16) | len_min;
-			header_len = 20;
-		}
-		if ((quint64)buf.length() < len+header_len)
-			return; // not enough yet
-
-		if ((len == 0) && (tgt == our_id)) {
-			qDebug("Ping? Pong!");
-			buf.remove(0, len+header_len);
-			continue;
-		}
-
-//		qDebug("Got %d bytes of data from %s", len, qPrintable(tgt.toHex()));
-		handleBuf(tgt, buf.mid(header_len, len));
-
-		buf.remove(0, len+header_len);
-	}
+	QNetworkRequest req(QUrl("http://" TPLPREVIEW_DOMAIN "/_special/stream/" + tgt));
+	req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+	net_out.post(req, QJsonDocument(obj).toJson());
 }
 
 void MainWindow::setUrl(const QString &url) {
