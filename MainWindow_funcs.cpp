@@ -5,11 +5,11 @@ void MainWindow::handle_fileExists(const QByteArray &src, const QString &file) {
 	qDebug("file_exists(%s)", qPrintable(file));
 	QDir path = getPath();
 	if (!path.exists()) {
-		reply(src, 0xdead, "Root is not valid");
+		reply(src, 0xdead, QStringLiteral("Root is not valid"));
 		return;
 	}
 	if (file.contains("../")) {
-		reply(src, 0xdead, "File name is not valid");
+		reply(src, 0xdead, QStringLiteral("File name is not valid"));
 		return;
 	}
 	QFile sub(path.absoluteFilePath(file));
@@ -46,16 +46,16 @@ void MainWindow::handle_getDir(const QByteArray &src, const QString &dir) {
 	qDebug("getDir(%s)", qPrintable(dir));
 	QDir path = getPath();
 	if (!path.exists()) {
-		reply(src, 0xdead, "Root is not valid");
+		reply(src, 0xdead, QStringLiteral("Root is not valid"));
 		return;
 	}
 	if (dir.contains("../")) {
-		reply(src, 0xdead, "File name is not valid");
+		reply(src, 0xdead, QStringLiteral("File name is not valid"));
 		return;
 	}
 	QDir sub(path.absoluteFilePath(dir));
 	if (!sub.exists()) {
-		reply(src, 0xdead, "Directory not found");
+		reply(src, 0xdead, QStringLiteral("Directory not found"));
 		return;
 	}
 
@@ -69,20 +69,20 @@ void MainWindow::handle_fileGetContents(const QByteArray &src, const QString &fi
 	qDebug("file_get_contents(%s)", qPrintable(file));
 	QDir path = getPath();
 	if (!path.exists()) {
-		reply(src, 0xdead, "Root is not valid");
+		reply(src, 0xdead, QStringLiteral("Root is not valid"));
 		return;
 	}
 	if (file.contains("../")) {
-		reply(src, 0xdead, "File name is not valid");
+		reply(src, 0xdead, QStringLiteral("File name is not valid"));
 		return;
 	}
 	QFile sub(path.absoluteFilePath(file));
 	if (!sub.exists()) {
-		reply(src, 0xdead, "File not found");
+		reply(src, 0xdead, QStringLiteral("File not found"));
 		return;
 	}
 	if (!sub.open(QIODevice::ReadOnly)) {
-		reply(src, 0xdead, "Could not open file for reading");
+		reply(src, 0xdead, QStringLiteral("Could not open file for reading"));
 		return;
 	}
 	reply(src, 0xff, QString(sub.readAll().toBase64()));
@@ -93,16 +93,16 @@ void MainWindow::handle_fileGetSize(const QByteArray &src, const QString &file) 
 	qDebug("file_get_size(%s)", qPrintable(file));
 	QDir path = getPath();
 	if (!path.exists()) {
-		reply(src, 0xdead, "Root is not valid");
+		reply(src, 0xdead, QStringLiteral("Root is not valid"));
 		return;
 	}
 	if (file.contains("../")) {
-		reply(src, 0xdead, "File name is not valid");
+		reply(src, 0xdead, QStringLiteral("File name is not valid"));
 		return;
 	}
 	QFile sub(path.absoluteFilePath(file));
 	if (!sub.exists()) {
-		reply(src, 0xdead, "File not found");
+		reply(src, 0xdead, QStringLiteral("File not found"));
 		return;
 	}
 	reply(src, 0xff, sub.size());
